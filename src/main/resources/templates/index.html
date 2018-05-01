@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartSport</title>
+</head>
+<body>
+<div id='root'></div>
+
+<script src="https://fb.me/react-15.0.1.js"></script>
+<script src="https://fb.me/react-dom-15.0.1.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.3/toastr.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.3/toastr.min.css">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+<script type="text/babel">
+
+    var App = React.createClass({
+        loadOrdersFromServer: function () {
+            var self = this;
+            $.ajax({
+                url: "http://localhost:8080/order/list"
+            }).then(function (data) {
+                self.setState({orders: data});
+            });
+        },
+
+        getInitialState: function () {
+            return {orders: []};
+        },
+
+        componentDidMount: function () {
+            this.loadOrdersFromServer();
+        },
+
+        handleGenerateOrder() {
+            var orders = this.state.orders;
+            var self = this;
+            $.ajax({
+                url: "http://localhost:8080/order/generateOrder",
+                type: 'GET',
+                success: function(result) {
+                    $.ajax({
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        type: "POST",
+                        url: "http://localhost:8080/order",
+                        data: JSON.stringify(result),
+                        success: function (result) {
+                            orders.unshift(result);
+                            self.setState({orders: orders});
+                            toastr.success("order generate success");
+                        },
+                        error: function (xhr, ajaxOptions, thrownError) {
+                            toastr.error(xhr.responseJSON.message);
+                        }
+                    });
+                },
+                error: function(xhr, ajaxOptions, thrownError) {
+                    toastr.error(xhr.responseJSON.message);
+                }
+            });
+        },
+
+        render() {
+            return (
+                <div className="container">
+                    <button className="btn btn-info" onClick={this.handleGenerateOrder}>Generate Order</button>
+                    <OrderList orders={this.state.orders}/>
+                </div>
+            );
+        }
+    });
+
+    var OrderList = React.createClass({
+        render: function() {
+            var rows = [];
+            this.props.orders.forEach(function(order) {
+                rows.push(<Order key={order.id} order={order} />);
+            });
+            return (
+                <div className="container">
+                    <table className="table table-striped">
+                        <thead>
+                        <tr>
+                            <th>Country</th>
+                            <th>Manager Name</th>
+                            <th>Organization</th>
+                            <th>Status</th>
+                            <th></th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>{rows}</tbody>
+                    </table>
+                </div>
+            );
+        }
+    });
+
+    var Order = React.createClass({
+
+        getInitialState: function() {
+            return {display: true };
+        },
+
+        handleDelete() {
+            var self = this;
+            $.ajax({
+                url: "http://localhost:8080/order/"+self.props.order.id,
+                type: 'DELETE',
+                success: function(result) {
+                    self.setState({display: false});
+                    toastr.success(result);
+                },
+                error: function(xhr, ajaxOptions, thrownError) {
+                    toastr.error(xhr.responseJSON.message);
+                }
+            });
+        },
+
+
+        render: function() {
+            if (this.state.display==false){
+                return null;
+            } else {
+                return (
+                    <tr key={this.props.order.id}>
+                        <td>{this.props.order.country}</td>
+                        <td>{this.props.order.managerName}</td>
+                        <td>{this.props.order.organization}</td>
+                        <td>{this.props.order.status}</td>
+                        <td>
+                            <button className="btn btn-danger" onClick={this.handleDelete}>Delete</button>
+                        </td>
+                    </tr>
+                );
+            }
+        }
+    });
+
+
+    ReactDOM.render(
+        <App />, document.getElementById('root')
+    );
+
+</script>
+
+</body>
+</html>
